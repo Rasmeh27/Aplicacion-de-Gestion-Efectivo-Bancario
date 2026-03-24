@@ -34,9 +34,20 @@ export default function SucursalesPage() {
       s.codigo.toLowerCase().includes(search.toLowerCase())
   );
 
-  const openCreate = () => {
+const openCreate = async () => {
     setForm({ codigo: "", nombre: "", estado: "ACTIVA" });
+    setCajasAsignadas([]);
+    setCajasOriginales([]);
     setModal({ open: true, editing: null });
+    setCajasLoading(true);
+    try {
+      const todas: Cashbox[] = await cajasApi.list();
+      setCajasDisponibles(todas.filter((c) => !c.sucursalId));
+    } catch {
+      setCajasDisponibles([]);
+    } finally {
+      setCajasLoading(false);
+    }
   };
 
   const openEdit = async (s: Sucursal) => {
@@ -86,7 +97,10 @@ export default function SucursalesPage() {
         ...removidas.map((c) => cajasApi.update(c.id, { ...c, sucursalId: "" })),
       ]);
     } else {
-      await sucursalesApi.create(form);
+      const nueva = await sucursalesApi.create(form);
+      await Promise.all(
+        cajasAsignadas.map((c) => cajasApi.update(c.id, { ...c, sucursalId: nueva.id }))
+      );
     }
     setModal({ open: false, editing: null });
     load();
@@ -190,9 +204,8 @@ export default function SucursalesPage() {
             </select>
           </div>
 
-          {/* Cajas — solo en modo edición */}
-          {modal.editing && (
-            <div className="space-y-2 pt-1">
+        {/* Cajas */}
+          <div className="space-y-2 pt-1">
               <label className="block text-sm font-medium text-slate-700">Cajas</label>
               {cajasLoading ? (
                 <p className="text-sm text-slate-400">Cargando cajas...</p>
@@ -234,7 +247,7 @@ export default function SucursalesPage() {
                 </div>
               )}
             </div>
-          )}
+          <div className="flex justify-end gap-3 pt-2"></div>
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={() => setModal({ open: false, editing: null })} className="px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancelar</button>
