@@ -14,6 +14,7 @@ export default function SucursalesPage() {
     editing: null,
   });
   const [form, setForm] = useState({ codigo: "", nombre: "", estado: "ACTIVA" });
+  const [submitError, setSubmitError] = useState("");
 
   // Cajas state
   const [cajasAsignadas, setCajasAsignadas] = useState<Cashbox[]>([]);
@@ -34,10 +35,11 @@ export default function SucursalesPage() {
       s.codigo.toLowerCase().includes(search.toLowerCase())
   );
 
-const openCreate = async () => {
+  const openCreate = async () => {
     setForm({ codigo: "", nombre: "", estado: "ACTIVA" });
     setCajasAsignadas([]);
     setCajasOriginales([]);
+    setSubmitError("");
     setModal({ open: true, editing: null });
     setCajasLoading(true);
     try {
@@ -52,6 +54,7 @@ const openCreate = async () => {
 
   const openEdit = async (s: Sucursal) => {
     setForm({ codigo: s.codigo, nombre: s.nombre, estado: s.estado });
+    setSubmitError("");
     setModal({ open: true, editing: s });
     setCajasLoading(true);
     try {
@@ -82,28 +85,33 @@ const openCreate = async () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (modal.editing) {
-      await sucursalesApi.update(modal.editing.id, form);
+    setSubmitError("");
+    try {
+      if (modal.editing) {
+        await sucursalesApi.update(modal.editing.id, form);
 
-      const agregadas = cajasAsignadas.filter(
-        (c) => !cajasOriginales.find((o) => o.id === c.id)
-      );
-      const removidas = cajasOriginales.filter(
-        (o) => !cajasAsignadas.find((c) => c.id === o.id)
-      );
+        const agregadas = cajasAsignadas.filter(
+          (c) => !cajasOriginales.find((o) => o.id === c.id)
+        );
+        const removidas = cajasOriginales.filter(
+          (o) => !cajasAsignadas.find((c) => c.id === o.id)
+        );
 
-      await Promise.all([
-        ...agregadas.map((c) => cajasApi.update(c.id, { ...c, sucursalId: modal.editing!.id })),
-        ...removidas.map((c) => cajasApi.update(c.id, { ...c, sucursalId: "" })),
-      ]);
-    } else {
-      const nueva = await sucursalesApi.create(form);
-      await Promise.all(
-        cajasAsignadas.map((c) => cajasApi.update(c.id, { ...c, sucursalId: nueva.id }))
-      );
+        await Promise.all([
+          ...agregadas.map((c) => cajasApi.update(c.id, { ...c, sucursalId: modal.editing!.id })),
+          ...removidas.map((c) => cajasApi.update(c.id, { ...c, sucursalId: "" })),
+        ]);
+      } else {
+        const nueva = await sucursalesApi.create(form);
+        await Promise.all(
+          cajasAsignadas.map((c) => cajasApi.update(c.id, { ...c, sucursalId: nueva.id }))
+        );
+      }
+      setModal({ open: false, editing: null });
+      load();
+    } catch {
+      setSubmitError("No se pudo conectar al servidor. Intenta más tarde.");
     }
-    setModal({ open: false, editing: null });
-    load();
   };
 
   const handleDelete = async (id: string) => {
@@ -204,50 +212,50 @@ const openCreate = async () => {
             </select>
           </div>
 
-        {/* Cajas */}
+          {/* Cajas */}
           <div className="space-y-2 pt-1">
-              <label className="block text-sm font-medium text-slate-700">Cajas</label>
-              {cajasLoading ? (
-                <p className="text-sm text-slate-400">Cargando cajas...</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Asignadas */}
-                  <div className="border border-slate-200 rounded-lg p-2 space-y-1 min-h-[90px]">
-                    <p className="text-xs font-semibold text-slate-500 px-1 pb-1">Asignadas</p>
-                    {cajasAsignadas.length === 0 ? (
-                      <p className="text-xs text-slate-400 px-1">Ninguna</p>
-                    ) : (
-                      cajasAsignadas.map((c) => (
-                        <div key={c.id} className="flex items-center justify-between px-2 py-1.5 bg-slate-50 rounded-md">
-                          <span className="text-xs text-slate-700 truncate">{c.nombre}</span>
-                          <button type="button" onClick={() => quitarCaja(c)} className="ml-1 p-0.5 hover:bg-red-100 rounded cursor-pointer flex-shrink-0" title="Quitar">
-                            <X className="w-3 h-3 text-red-500" />
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  {/* Disponibles */}
-                  <div className="border border-slate-200 rounded-lg p-2 space-y-1 min-h-[90px]">
-                    <p className="text-xs font-semibold text-slate-500 px-1 pb-1">Disponibles</p>
-                    {cajasDisponibles.length === 0 ? (
-                      <p className="text-xs text-slate-400 px-1">Ninguna libre</p>
-                    ) : (
-                      cajasDisponibles.map((c) => (
-                        <div key={c.id} className="flex items-center justify-between px-2 py-1.5 bg-slate-50 rounded-md">
-                          <span className="text-xs text-slate-700 truncate">{c.nombre}</span>
-                          <button type="button" onClick={() => agregarCaja(c)} className="ml-1 p-0.5 hover:bg-green-100 rounded cursor-pointer flex-shrink-0" title="Agregar">
-                            <Plus className="w-3 h-3 text-green-600" />
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
+            <label className="block text-sm font-medium text-slate-700">Cajas</label>
+            {cajasLoading ? (
+              <p className="text-sm text-slate-400">Cargando cajas...</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="border border-slate-200 rounded-lg p-2 space-y-1 min-h-[90px]">
+                  <p className="text-xs font-semibold text-slate-500 px-1 pb-1">Asignadas</p>
+                  {cajasAsignadas.length === 0 ? (
+                    <p className="text-xs text-slate-400 px-1">Ninguna</p>
+                  ) : (
+                    cajasAsignadas.map((c) => (
+                      <div key={c.id} className="flex items-center justify-between px-2 py-1.5 bg-slate-50 rounded-md">
+                        <span className="text-xs text-slate-700 truncate">{c.nombre}</span>
+                        <button type="button" onClick={() => quitarCaja(c)} className="ml-1 p-0.5 hover:bg-red-100 rounded cursor-pointer flex-shrink-0" title="Quitar">
+                          <X className="w-3 h-3 text-red-500" />
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
-              )}
-            </div>
-          <div className="flex justify-end gap-3 pt-2"></div>
+                <div className="border border-slate-200 rounded-lg p-2 space-y-1 min-h-[90px]">
+                  <p className="text-xs font-semibold text-slate-500 px-1 pb-1">Disponibles</p>
+                  {cajasDisponibles.length === 0 ? (
+                    <p className="text-xs text-slate-400 px-1">Ninguna libre</p>
+                  ) : (
+                    cajasDisponibles.map((c) => (
+                      <div key={c.id} className="flex items-center justify-between px-2 py-1.5 bg-slate-50 rounded-md">
+                        <span className="text-xs text-slate-700 truncate">{c.nombre}</span>
+                        <button type="button" onClick={() => agregarCaja(c)} className="ml-1 p-0.5 hover:bg-green-100 rounded cursor-pointer flex-shrink-0" title="Agregar">
+                          <Plus className="w-3 h-3 text-green-600" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {submitError && (
+            <p className="text-sm text-red-500 text-center">{submitError}</p>
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={() => setModal({ open: false, editing: null })} className="px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancelar</button>
