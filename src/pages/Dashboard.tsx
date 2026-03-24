@@ -46,10 +46,10 @@ const DEFAULT_FROM = thirtyDaysAgo.toISOString().slice(0, 10);
 const DEFAULT_TO = today.toISOString().slice(0, 10);
 const GEO_COLORS = [
   "#10b981",
-  "#3b82f6",
+  "#166088",
   "#f59e0b",
   "#ef4444",
-  "#8b5cf6",
+  "#0053AD",
   "#06b6d4",
   "#ec4899",
   "#84cc16",
@@ -191,7 +191,7 @@ export default function Dashboard() {
           icon={<Archive className="h-5 w-5" />}
           label="Cajas abiertas"
           value={String(data?.cashSummary.cajasAbiertas ?? 0)}
-          color="bg-blue-50 text-blue-600"
+          color="bg-[#166088]/10 text-[#166088]"
         />
         <KpiCard
           icon={<ArchiveX className="h-5 w-5" />}
@@ -291,7 +291,7 @@ export default function Dashboard() {
                   type="monotone"
                   dataKey="balance"
                   name="Balance neto"
-                  stroke="#3b82f6"
+                  stroke="#166088"
                   strokeDasharray="5 5"
                   strokeWidth={2}
                   dot={{ r: 3 }}
@@ -319,7 +319,7 @@ export default function Dashboard() {
                 <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={(value) => `${(Number(value) / 1000).toFixed(0)}k`} />
                 <YAxis dataKey="nombre" type="category" tick={{ fontSize: 11 }} width={70} />
                 <Tooltip formatter={(value) => formatCurrency(Number(value) || 0)} />
-                <Bar dataKey="promedio" name="Promedio" fill="#8b5cf6" radius={[0, 6, 6, 0]} />
+                <Bar dataKey="promedio" name="Promedio" fill="#0053AD" radius={[0, 6, 6, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
