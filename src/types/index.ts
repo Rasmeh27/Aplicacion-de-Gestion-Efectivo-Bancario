@@ -41,13 +41,22 @@ export type SessionStatus = "ABIERTA" | "CERRADA";
 export type CashboxSession = {
   id: string;
   cajaId: string;
-  usuarioId: string;
+
+  // forma real del backend
+  usuarioAperturaId?: string;
+  usuarioCierreId?: string | null;
   fechaApertura: string;
   fechaCierre: string | null;
   saldoInicial: number;
-  saldoFinal: number | null;
-  saldoRealCierre: number | null;
+  saldoFinalEsperado?: number;
+  saldoFinalReal?: number;
+  diferencia?: number;
   estado: SessionStatus;
+
+  // compatibilidad por si alguna otra página aún usa la forma vieja
+  usuarioId?: string;
+  saldoFinal?: number | null;
+  saldoRealCierre?: number | null;
 };
 
 // ── Dashboard / KPIs ────────────────────────────────────
@@ -124,17 +133,26 @@ export type MovementType =
   | "TRANSFERENCIA"
   | "REABASTECIMIENTO";
 
+export type MovementStatus = "ACTIVO" | "ANULADO";
+
 export type CashMovement = {
   id: string;
-  sesionCajaId: string;
+  fecha: string;
   tipo: MovementType;
+  medio: string;
   monto: number;
   moneda: string;
-  descripcion: string;
+  referencia?: string | null;
+  observacion?: string | null;
+  estado: MovementStatus;
+  cajaId: string;
+  sesionCajaId: string;
+  usuarioId: string;
   cajaOrigenId: string | null;
   cajaDestinoId: string | null;
-  fecha: string;
-  usuarioId: string;
+
+  // compatibilidad con forma vieja
+  descripcion?: string;
 };
 
 // ── Arqueos (Cashbox Audits) ────────────────────────────
@@ -159,15 +177,29 @@ export type Priority = "BAJA" | "MEDIA" | "ALTA" | "URGENTE";
 
 export type FundRequest = {
   id: string;
-  status: RequestStatus;
   monto: number;
   moneda: string;
   motivo: string;
   prioridad: Priority;
-  origenSucursalId: string | null;
-  destinoSucursalId: string | null;
-  solicitanteId: string;
-  fecha: string;
+
+  // Compatibilidad con la forma vieja del frontend
+  status?: RequestStatus;
+  origenSucursalId?: string | null;
+  destinoSucursalId?: string | null;
+  solicitanteId?: string;
+  fecha?: string;
+
+  // Forma real que devuelve el backend actual
+  estado?: RequestStatus;
+  origenScope?: string;
+  origenId?: string | null;
+  destinoScope?: string;
+  destinoId?: string | null;
+  solicitadaPor?: string;
+  fechaSolicitud?: string;
+  aprobadaPor?: string | null;
+  fechaAprobacion?: string | null;
+  motivoRechazo?: string | null;
 };
 
 // ── Usuarios ────────────────────────────────────────────
@@ -203,6 +235,46 @@ export type AuditEvent = {
   resumen: string;
   antes: Record<string, unknown> | null;
   despues: Record<string, unknown> | null;
+};
+
+// ── Recomendaciones ─────────────────────────────────────
+
+export type RecommendationType = "ALERTA" | "OPTIMIZACION" | "PREVISION" | "GENERAL";
+export type RecommendationPriority = "ALTA" | "MEDIA" | "BAJA";
+export type RecommendationStatus = "PENDIENTE" | "LEIDA" | "DESCARTADA";
+
+export type Recommendation = {
+  id: string;
+  tipo: RecommendationType;
+  prioridad: RecommendationPriority;
+  titulo: string;
+  descripcion: string;
+  datosContexto: Record<string, unknown> | null;
+  estado: RecommendationStatus;
+  sucursalId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+// ── AI Chat ─────────────────────────────────────────────
+
+export type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+};
+
+export type ChatResponse = {
+  reply: string;
+  context: {
+    cashSummary: {
+      efectivoTotalEnCirculacion: number;
+      cajasAbiertas: number;
+      cajasCerradas: number;
+    };
+    cajasAbiertas: number;
+    efectivoTotal: number;
+  };
 };
 
 // ── Paginación ──────────────────────────────────────────
