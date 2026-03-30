@@ -9,6 +9,7 @@ import {
   BarChart3,
   Calendar,
   DollarSign,
+  Landmark,
   MapPin,
   TrendingDown,
   TrendingUp,
@@ -30,8 +31,11 @@ import {
 } from "recharts";
 import RecommendationsPanel from "../components/dashboard/RecommendationsPanel";
 import BranchMap from "../components/ui/BranchMap";
-import { kpisApi, sucursalesApi } from "../services/api";
+import { atmApi, kpisApi, sucursalesApi } from "../services/api";
+import { geocodeDominicanAddress } from "../services/geocoding";
 import type {
+  AtmMovement,
+  AtmRecord,
   AverageBalanceData,
   DashboardData,
   GeoDistribution,
@@ -64,13 +68,60 @@ export default function Dashboard() {
   const [trendData, setTrendData] = useState<TrendPoint[]>([]);
   const [avgBalance, setAvgBalance] = useState<AverageBalanceData | null>(null);
   const [geoDist, setGeoDist] = useState<GeoDistribution[]>([]);
+  const [resolvedGeoDist, setResolvedGeoDist] = useState<GeoDistribution[]>([]);
   const [dateFrom, setDateFrom] = useState(DEFAULT_FROM);
   const [dateTo, setDateTo] = useState(DEFAULT_TO);
+  const [branchAtms, setBranchAtms] = useState<AtmRecord[]>([]);
+  const [atmMovements, setAtmMovements] = useState<Record<string, AtmMovement[]>>({});
+  const [atmLoading, setAtmLoading] = useState(false);
+  const [expandedAtmId, setExpandedAtmId] = useState<string | null>(null);
 
   useEffect(() => {
     void sucursalesApi.list().then(setSucursales).catch(() => setSucursales([]));
     void kpisApi.geographicDistribution().then(setGeoDist).catch(() => setGeoDist([]));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveCoordinates = async () => {
+      if (geoDist.length === 0) {
+        setResolvedGeoDist([]);
+        return;
+      }
+
+      const resolved = await Promise.all(
+        geoDist.map(async (branch) => {
+          if (branch.latitud != null && branch.longitud != null) {
+            return branch;
+          }
+
+          const sucursal = sucursales.find((item) => item.id === branch.sucursalId);
+          const direccion = sucursal?.direccion?.trim();
+          if (!direccion) {
+            return branch;
+          }
+
+          try {
+            const coords = await geocodeDominicanAddress(direccion);
+            return { ...branch, latitud: coords.latitud, longitud: coords.longitud };
+          } catch {
+            return branch;
+          }
+        })
+      );
+
+      if (!cancelled) {
+        setResolvedGeoDist(resolved);
+      }
+    };
+
+    void resolveCoordinates();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [geoDist, sucursales]);
 
   useEffect(() => {
     setLoading(true);
@@ -79,6 +130,37 @@ export default function Dashboard() {
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false));
+  }, [sucursalId]);
+
+  useEffect(() => {
+    if (!sucursalId) {
+      setBranchAtms([]);
+      setAtmMovements({});
+      setExpandedAtmId(null);
+      return;
+    }
+    setAtmLoading(true);
+    void sucursalesApi
+      .listAtms(sucursalId)
+      .then(async (atms) => {
+        setBranchAtms(atms);
+        const movMap: Record<string, AtmMovement[]> = {};
+        await Promise.all(
+          atms.map(async (atm) => {
+            try {
+              movMap[atm.id] = await atmApi.movimientos(atm.id);
+            } catch {
+              movMap[atm.id] = [];
+            }
+          })
+        );
+        setAtmMovements(movMap);
+      })
+      .catch(() => {
+        setBranchAtms([]);
+        setAtmMovements({});
+      })
+      .finally(() => setAtmLoading(false));
   }, [sucursalId]);
 
   const loadTrendData = useCallback(() => {
@@ -126,12 +208,14 @@ export default function Dashboard() {
     balance: item.balance,
   }));
 
-  const geoChartData = geoDist.map((item, index) => ({
+  const geoDistributionData = resolvedGeoDist.length > 0 ? resolvedGeoDist : geoDist;
+
+  const geoChartData = geoDistributionData.map((item, index) => ({
     ...item,
     color: GEO_COLORS[index % GEO_COLORS.length],
   }));
 
-  const totalGeo = geoDist.reduce((sum, item) => sum + item.efectivoTotal, 0);
+  const totalGeo = geoDistributionData.reduce((sum, item) => sum + item.efectivoTotal, 0);
 
   if (loading) {
     return (
@@ -212,6 +296,141 @@ export default function Dashboard() {
           color="bg-purple-50 text-purple-600"
         />
       </div>
+
+      {sucursalId && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Landmark className="h-5 w-5 text-blue-500" />
+            <h2 className="text-lg font-semibold text-slate-800">
+              Movimientos de ATM — {sucursales.find((s) => s.id === sucursalId)?.nombre}
+            </h2>
+          </div>
+
+          {atmLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="h-6 w-6 animate-spin rounded-full border-4 border-slate-300 border-t-slate-600" />
+            </div>
+          ) : branchAtms.length === 0 ? (
+            <p className="py-4 text-center text-sm text-slate-400">
+              Esta sucursal no tiene ATMs registrados.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {branchAtms.map((atm) => {
+                const movements = atmMovements[atm.id] ?? [];
+                const isExpanded = expandedAtmId === atm.id;
+                const statusColor =
+                  atm.estado === "ACTIVO"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : atm.estado === "EN_MANTENIMIENTO"
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-slate-100 text-slate-600";
+
+                return (
+                  <div key={atm.id} className="rounded-lg border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedAtmId(isExpanded ? null : atm.id)}
+                      className="flex w-full items-center justify-between p-4 text-left transition hover:bg-slate-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+                          <Landmark className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">{atm.nombre}</p>
+                          <p className="text-xs text-slate-400">Código: {atm.codigo}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColor}`}>
+                          {atm.estado}
+                        </span>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-slate-800">{formatCurrency(atm.balanceActual)}</p>
+                          <p className="text-xs text-slate-400">{movements.length} movimientos</p>
+                        </div>
+                        <svg
+                          className={`h-4 w-4 text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="border-t border-slate-100 p-4">
+                        {movements.length === 0 ? (
+                          <p className="py-2 text-center text-sm text-slate-400">Sin movimientos registrados.</p>
+                        ) : (
+                          <div className="max-h-64 overflow-auto scrollbar-hidden">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase text-slate-400">
+                                  <th className="pb-2 pr-4">Fecha</th>
+                                  <th className="pb-2 pr-4">Tipo</th>
+                                  <th className="pb-2 pr-4">Monto</th>
+                                  <th className="pb-2 pr-4">Referencia</th>
+                                  <th className="pb-2">Usuario</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {movements.slice(0, 20).map((mov) => (
+                                  <tr key={mov.id} className="border-b border-slate-50 last:border-0">
+                                    <td className="py-2 pr-4 text-xs text-slate-500">
+                                      {new Date(mov.fecha).toLocaleString("es-DO", {
+                                        day: "2-digit",
+                                        month: "short",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </td>
+                                    <td className="py-2 pr-4">
+                                      <span
+                                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                          mov.tipoMovimiento === "REABASTECIMIENTO"
+                                            ? "bg-emerald-50 text-emerald-700"
+                                            : "bg-red-50 text-red-700"
+                                        }`}
+                                      >
+                                        {mov.tipoMovimiento === "REABASTECIMIENTO" ? "Depósito" : "Retiro"}
+                                      </span>
+                                    </td>
+                                    <td className={`py-2 pr-4 text-xs font-semibold ${
+                                      mov.tipoMovimiento === "REABASTECIMIENTO" ? "text-emerald-600" : "text-red-600"
+                                    }`}>
+                                      {mov.tipoMovimiento === "REABASTECIMIENTO" ? "+" : "-"}
+                                      {formatCurrency(mov.monto)}
+                                    </td>
+                                    <td className="py-2 pr-4 text-xs text-slate-400">
+                                      {mov.referencia ?? "—"}
+                                    </td>
+                                    <td className="py-2 text-xs text-slate-400">
+                                      {mov.usuarioNombre ?? "Sistema"}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            {movements.length > 20 && (
+                              <p className="mt-2 text-center text-xs text-slate-400">
+                                Mostrando 20 de {movements.length} movimientos
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <RecommendationsPanel sucursalId={sucursalId || undefined} branches={sucursales} />
 
@@ -332,11 +551,11 @@ export default function Dashboard() {
           <h2 className="text-lg font-semibold text-slate-800">Distribución geográfica de efectivo</h2>
         </div>
 
-        {geoDist.length === 0 ? (
+        {geoDistributionData.length === 0 ? (
           <p className="py-4 text-center text-sm text-slate-400">Sin datos de sucursales.</p>
         ) : (
           <div className="space-y-6">
-            <BranchMap branches={geoDist} />
+            <BranchMap branches={geoDistributionData} />
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="h-72">
@@ -351,19 +570,26 @@ export default function Dashboard() {
                       outerRadius={100}
                       innerRadius={50}
                       paddingAngle={2}
-                      label={({ name, percent }) => `${String(name)} (${((percent ?? 0) * 100).toFixed(0)}%)`}
-                      labelLine={{ strokeWidth: 1 }}
                     >
                       {geoChartData.map((item) => (
                         <Cell key={item.sucursalId} fill={item.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => formatCurrency(Number(value) || 0)} />
+                    <Tooltip
+                      formatter={(value, name) => [formatCurrency(Number(value) || 0), String(name)]}
+                    />
+                    <Legend
+                      layout="vertical"
+                      verticalAlign="middle"
+                      align="right"
+                      wrapperStyle={{ fontSize: 12, maxHeight: 260, overflowY: "auto" }}
+                      formatter={(value) => <span className="text-slate-600">{String(value)}</span>}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
 
-              <div className="max-h-72 space-y-3 overflow-y-auto">
+              <div className="max-h-72 space-y-3 overflow-y-auto scrollbar-hidden">
                 {geoChartData.map((branch) => {
                   const pct = totalGeo > 0 ? (branch.efectivoTotal / totalGeo) * 100 : 0;
 
@@ -417,7 +643,7 @@ export default function Dashboard() {
           {data?.balanceAlerts.length === 0 ? (
             <p className="py-4 text-center text-sm text-slate-400">Sin alertas pendientes.</p>
           ) : (
-            <div className="max-h-72 space-y-3 overflow-y-auto">
+            <div className="max-h-72 space-y-3 overflow-y-auto scrollbar-hidden">
               {data?.balanceAlerts.map((alert) => (
                 <div key={alert.arqueoId} className="flex items-center justify-between rounded-lg bg-amber-50 p-3">
                   <div>
@@ -442,7 +668,7 @@ export default function Dashboard() {
           {data?.recentOperations.length === 0 ? (
             <p className="py-4 text-center text-sm text-slate-400">Sin operaciones recientes.</p>
           ) : (
-            <div className="max-h-72 space-y-3 overflow-y-auto">
+            <div className="max-h-72 space-y-3 overflow-y-auto scrollbar-hidden">
               {data?.recentOperations.map((operation, index) => (
                 <div key={`${operation.fecha}-${index}`} className="flex items-start gap-3 rounded-lg p-3 transition hover:bg-slate-50">
                   <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100">

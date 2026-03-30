@@ -83,7 +83,7 @@ export default function GlobalAssistantChat() {
         ...current,
         {
           role: "assistant",
-          content: response.reply,
+          content: response.reply ?? response.answer ?? "No se recibió contenido en la respuesta.",
           timestamp: new Date(),
         },
       ]);

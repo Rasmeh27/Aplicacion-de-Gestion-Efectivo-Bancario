@@ -47,9 +47,12 @@ export default function Login() {
             />
             {/* Content over image */}
             <div className="relative z-10 flex flex-col justify-between p-10 text-white">
-              <div>
-                <h2 className="text-2xl font-bold tracking-wide">BankingApp</h2>
-                <div className="w-10 h-1 bg-teal-400 mt-2 rounded-full" />
+              <div className="flex items-center gap-2">
+                <img src="/shield_logo.png" alt="Valtor" className="h-30 w-30 object-contain" />
+                <div>
+                  <h2 className="text-3xl font-bold tracking-wide">Valtor</h2>
+                  <div className="w-12 h-1 bg-cyan-400 mt-1.5 rounded-full" />
+                </div>
               </div>
 
               <div>
@@ -168,7 +171,7 @@ export default function Login() {
 
       {/* Footer */}
       <footer className="text-center py-4 text-xs text-slate-400">
-        © 2026-1 | IDS348 DESARROLLO WEB
+        Valtor — Gestion inteligente de efectivo
       </footer>
     </div>
   );

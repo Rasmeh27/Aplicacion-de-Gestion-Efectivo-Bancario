@@ -18,6 +18,63 @@ export type Sucursal = {
   total: number;
   latitud: number | null;
   longitud: number | null;
+  telefono?: string | null;
+  direccion?: string | null;
+  cantidadAtm?: number;
+};
+
+// ── ATM ─────────────────────────────────────────────────
+
+export type AtmStatus = "ACTIVO" | "INACTIVO" | "EN_MANTENIMIENTO" | string;
+export type AtmOperationType = "deposit" | "withdraw";
+
+export type AtmRecord = {
+  id: string;
+  sucursalId: string;
+  sucursalCodigo?: string | null;
+  sucursalNombre?: string | null;
+  cajaId: string;
+  cajaCodigo?: string | null;
+  cajaNombre?: string | null;
+  codigo: string;
+  nombre: string;
+  estado: AtmStatus;
+  moneda: string;
+  limiteOperativo: number;
+  balanceActual: number;
+  totalOperativo?: number;
+};
+
+export type AtmMovementType = "REABASTECIMIENTO" | "RETIRO";
+
+export type AtmMovement = {
+  id: string;
+  fecha: string;
+  tipo: string;
+  tipoMovimiento: AtmMovementType;
+  medio: string;
+  monto: number;
+  moneda: string;
+  referencia: string | null;
+  observacion: string | null;
+  estado: string;
+  usuarioId: string;
+  usuarioNombre: string | null;
+  sesionCajaId: string;
+  cajaId: string;
+  cajaCodigo: string | null;
+  atmId: string;
+  atmCodigo: string;
+  atmNombre: string;
+  sucursalId: string;
+  sucursalCodigo: string;
+  sucursalNombre: string;
+};
+
+export type AtmOperationResult = {
+  atm: AtmRecord;
+  movimiento: AtmMovement;
+  sucursalTotal: number;
 };
 
 // ── Cajas (Cashboxes) ───────────────────────────────────
@@ -32,6 +89,19 @@ export type Cashbox = {
   estado: CashboxStatus;
   moneda: string;
   limiteOperativo: number;
+  responsableId?: string | null;
+  responsableNombre?: string | null;
+  responsableEmail?: string | null;
+};
+
+export type CashboxPayload = {
+  sucursalId: string;
+  codigo?: string;
+  nombre: string;
+  estado?: CashboxStatus;
+  moneda?: string;
+  limiteOperativo?: number;
+  responsableId?: string | null;
 };
 
 // ── Sesiones de Caja ────────────────────────────────────
@@ -150,6 +220,7 @@ export type CashMovement = {
   usuarioId: string;
   cajaOrigenId: string | null;
   cajaDestinoId: string | null;
+  atmId?: string | null;
 
   // compatibilidad con forma vieja
   descripcion?: string;
@@ -258,30 +329,19 @@ export type Recommendation = {
 
 // ── AI Chat ─────────────────────────────────────────────
 
-export type ChatMessage = {
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
+export type ChatSource = {
+  title: string;
+  excerpt: string;
 };
 
 export type ChatResponse = {
-  reply: string;
-  context: {
-    cashSummary: {
-      efectivoTotalEnCirculacion: number;
-      cajasAbiertas: number;
-      cajasCerradas: number;
-    };
-    cajasAbiertas: number;
-    efectivoTotal: number;
-  };
+  answer?: string;
+  reply?: string;
+  context: ChatSource[];
 };
 
-// ── Paginación ──────────────────────────────────────────
-
-export type PaginatedResponse<T> = {
-  data: T[];
-  total: number;
-  page: number;
-  perPage: number;
+export type ChatMessage = {
+  role: "assistant" | "user";
+  content: string;
+  timestamp: Date;
 };

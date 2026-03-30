@@ -64,7 +64,7 @@ export default function BranchMap({ branches }: { branches: GeoDistribution[] })
   const positions = withCoords.map((b) => [b.latitud!, b.longitud!] as [number, number]);
 
   return (
-    <div className="h-80 rounded-xl overflow-hidden border border-slate-200">
+    <div className="relative z-0 h-80 rounded-xl overflow-hidden border border-slate-200">
       <MapContainer center={center} zoom={8} className="h-full w-full" scrollWheelZoom={true}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

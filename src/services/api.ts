@@ -1,9 +1,13 @@
 import axios from "axios";
 import type {
+  AtmMovement,
+  AtmOperationResult,
+  AtmRecord,
   AuditEvent,
   AverageBalanceData,
   CashMovement,
   Cashbox,
+  CashboxPayload,
   CashboxAudit,
   CashboxSession,
   ChatResponse,
@@ -133,22 +137,55 @@ export const sucursalesApi = {
   list: (): Promise<Sucursal[]> => unwrapList<Sucursal>(api.get("/sucursales")),
   getById: (id: string): Promise<Sucursal> => unwrap<Sucursal>(api.get(`/sucursales/${id}`)),
   create: (body: {
-    codigo: string;
+    codigo?: string;
     nombre: string;
     estado?: string;
     latitud?: number | null;
     longitud?: number | null;
+    telefono?: string | null;
+    direccion?: string | null;
   }) => unwrap<Sucursal>(api.post("/sucursales", body)),
   update: (id: string, body: Record<string, unknown>): Promise<Sucursal> =>
     unwrap<Sucursal>(api.patch(`/sucursales/${id}`, body)),
   delete: (id: string) => api.delete(`/sucursales/${id}`),
+  listAtms: (id: string): Promise<AtmRecord[]> => unwrapList<AtmRecord>(api.get(`/sucursales/${id}/atms`)),
+};
+
+export const atmApi = {
+  create: (body: {
+    sucursalId: string;
+    cajaId: string;
+    codigo?: string;
+    nombre: string;
+    balanceInicial: number;
+    moneda?: string;
+    estado?: string;
+  }): Promise<AtmRecord> => unwrap<AtmRecord>(api.post(`/atm`, body)),
+  getById: (id: string): Promise<AtmRecord> => unwrap<AtmRecord>(api.get(`/atm/${id}`)),
+  movimientos: (id: string): Promise<AtmMovement[]> => unwrapList<AtmMovement>(api.get(`/atm/${id}/movimientos`)),
+  deposit: (id: string, body: {
+    monto: number;
+    sesionCajaId: string;
+    referencia?: string;
+    observacion?: string;
+    sucursalId?: string;
+    cajaId?: string;
+  }): Promise<AtmOperationResult> => unwrap<AtmOperationResult>(api.post(`/atm/${id}/deposit`, body)),
+  withdraw: (id: string, body: {
+    monto: number;
+    sesionCajaId: string;
+    referencia?: string;
+    observacion?: string;
+    sucursalId?: string;
+    cajaId?: string;
+  }): Promise<AtmOperationResult> => unwrap<AtmOperationResult>(api.post(`/atm/${id}/withdraw`, body)),
 };
 
 export const cajasApi = {
   list: (): Promise<Cashbox[]> => unwrapList<Cashbox>(api.get("/cashboxes")),
   getById: (id: string): Promise<Cashbox> => unwrap<Cashbox>(api.get(`/cashboxes/${id}`)),
-  create: (body: Record<string, unknown>): Promise<Cashbox> => unwrap<Cashbox>(api.post("/cashboxes", body)),
-  update: (id: string, body: Record<string, unknown>): Promise<Cashbox> =>
+  create: (body: CashboxPayload): Promise<Cashbox> => unwrap<Cashbox>(api.post("/cashboxes", body)),
+  update: (id: string, body: Partial<CashboxPayload>): Promise<Cashbox> =>
     unwrap<Cashbox>(api.patch(`/cashboxes/${id}`, body)),
   delete: (id: string) => api.delete(`/cashboxes/${id}`),
 };
@@ -160,7 +197,7 @@ export const sesionesApi = {
   open: (body: { cajaId: string; saldoInicial: number }): Promise<CashboxSession> =>
     unwrap<CashboxSession>(api.post("/cashbox-sessions/open", body)),
   close: (id: string, body: { saldoFinalReal: number }) =>
-  unwrap(api.patch(`/cashbox-sessions/${id}/close`, body)),
+    unwrap(api.patch(`/cashbox-sessions/${id}/close`, body)),
 };
 
 export const movimientosApi = {
@@ -187,8 +224,8 @@ export const solicitudesApi = {
   create: (body: Record<string, unknown>): Promise<FundRequest> =>
     unwrap<FundRequest>(api.post("/solicitudes", body)),
   resolve: (
-  id: string,
-  body: { decision: string; comentario?: string; motivoRechazo?: string; motivo?: string }
+    id: string,
+    body: { decision: string; comentario?: string; motivoRechazo?: string; motivo?: string }
   ) => unwrap(api.patch(`/solicitudes/${id}/resolve`, body)),
   execute: (id: string): Promise<FundRequest> => unwrap<FundRequest>(api.patch(`/solicitudes/${id}/execute`)),
 };
