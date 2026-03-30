@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, Search, Coins } from "lucide-react";
 import { cajasApi, sucursalesApi, usuariosApi } from "../../services/api";
 import { generateCajaCodePreview } from "../../services/code-preview";
 import type { Cashbox, CashboxPayload, Sucursal, User } from "../../types";
+import { alertError, alertWarning, confirmAction } from "../../utils/alerts";
 import Modal from "../../components/ui/Modal";
 import StatusBadge from "../../components/ui/StatusBadge";
 
@@ -136,7 +137,7 @@ export default function CajasPage() {
 
     const limiteOperativo = Number(form.limiteOperativo);
     if (Number.isNaN(limiteOperativo) || limiteOperativo < 0) {
-      alert("El límite operativo debe ser un número válido.");
+      await alertWarning("Valor inválido", "El límite operativo debe ser un número válido.");
       return;
     }
 
@@ -164,19 +165,19 @@ export default function CajasPage() {
       load();
     } catch (error) {
       console.error("Error guardando caja:", error);
-      alert("No se pudo guardar la caja.");
+      await alertError("Error", "No se pudo guardar la caja.");
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("¿Eliminar esta caja?")) return;
+    if (!(await confirmAction("¿Eliminar esta caja?", "Esta acción no se puede deshacer.", "Sí, eliminar"))) return;
 
     try {
       await cajasApi.delete(id);
       load();
     } catch (error) {
       console.error("Error eliminando caja:", error);
-      alert("No se pudo eliminar la caja.");
+      await alertError("Error", "No se pudo eliminar la caja.");
     }
   };
 

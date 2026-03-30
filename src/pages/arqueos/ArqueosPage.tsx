@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Search, ClipboardCheck } from "lucide-react";
+import { Plus, Search, ClipboardCheck, AlertTriangle } from "lucide-react";
 import { arqueosApi, sesionesApi, cajasApi } from "../../services/api";
 import type { CashboxAudit, CashboxSession, Cashbox } from "../../types";
 import Modal from "../../components/ui/Modal";
@@ -10,6 +10,7 @@ export default function ArqueosPage() {
   const [cajas, setCajas] = useState<Cashbox[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [filterMoneda, setFilterMoneda] = useState("TODAS");
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ sesionCajaId: "", moneda: "DOP", observaciones: "" } as Record<string, string>);
 
@@ -35,7 +36,7 @@ export default function ArqueosPage() {
     return cajas.find((c) => c.id === ses.cajaId)?.nombre ?? ses.cajaId.slice(0, 8);
   };
 
-  const fmt = (n: number) => new Intl.NumberFormat("es-DO", { style: "currency", currency: "DOP" }).format(n);
+  const fmt = (n: number, moneda: string = "DOP") => new Intl.NumberFormat("es-DO", { style: "currency", currency: moneda === "USD" ? "USD" : "DOP" }).format(n);
   const fmtDate = (d: string) => new Date(d).toLocaleString("es-DO", { dateStyle: "short", timeStyle: "short" });
 
   const openSessions = sesiones.filter((s) => s.estado === "ABIERTA");
@@ -56,7 +57,8 @@ export default function ArqueosPage() {
   };
 
   const filtered = arqueos.filter((a) =>
-    cajaNameFromSession(a.sesionCajaId).toLowerCase().includes(search.toLowerCase())
+    cajaNameFromSession(a.sesionCajaId).toLowerCase().includes(search.toLowerCase()) &&
+    (filterMoneda === "TODAS" || a.moneda === filterMoneda)
   );
 
   return (
@@ -71,9 +73,18 @@ export default function ArqueosPage() {
         </button>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input type="text" placeholder="Buscar por caja..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input type="text" placeholder="Buscar por caja..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
+        </div>
+        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg p-1">
+          {["TODAS", "DOP", "USD", "EUR"].map((m) => (
+            <button key={m} onClick={() => setFilterMoneda(m)} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer ${filterMoneda === m ? "bg-slate-700 text-white" : "text-slate-500 hover:bg-slate-100"}`}>
+              {m === "TODAS" ? "Todas" : m}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -100,10 +111,10 @@ export default function ArqueosPage() {
                   <td className="px-6 py-4 text-slate-500">{fmtDate(a.fecha)}</td>
                   <td className="px-6 py-4 text-slate-700 font-medium">{cajaNameFromSession(a.sesionCajaId)}</td>
                   <td className="px-6 py-4 text-slate-500">{a.moneda}</td>
-                  <td className="px-6 py-4 text-right text-slate-700">{fmt(a.saldoContado)}</td>
-                  <td className="px-6 py-4 text-right text-slate-700">{fmt(a.saldoEsperado)}</td>
+                  <td className="px-6 py-4 text-right text-slate-700">{fmt(a.saldoContado, a.moneda)}</td>
+                  <td className="px-6 py-4 text-right text-slate-700">{fmt(a.saldoEsperado, a.moneda)}</td>
                   <td className={`px-6 py-4 text-right font-bold ${a.diferencia === 0 ? "text-emerald-600" : "text-red-600"}`}>
-                    {a.diferencia > 0 ? "+" : ""}{fmt(a.diferencia)}
+                    {a.diferencia > 0 ? "+" : ""}{fmt(a.diferencia, a.moneda)}
                   </td>
                   <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate">{a.observaciones ?? "—"}</td>
                 </tr>
@@ -117,12 +128,22 @@ export default function ArqueosPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Sesión de Caja</label>
-            <select value={form.sesionCajaId} onChange={(e) => setForm({ ...form, sesionCajaId: e.target.value })} required className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
-              {openSessions.map((s) => {
-                const caja = cajas.find((c) => c.id === s.cajaId);
-                return <option key={s.id} value={s.id}>{caja?.nombre ?? "Caja"} (Sesión abierta)</option>;
-              })}
-            </select>
+            {openSessions.length === 0 ? (
+              <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-red-700">No hay sesiones disponibles</p>
+                  <p className="text-xs text-red-500 mt-0.5">Debe abrir una sesión de caja antes de realizar un arqueo.</p>
+                </div>
+              </div>
+            ) : (
+              <select value={form.sesionCajaId} onChange={(e) => setForm({ ...form, sesionCajaId: e.target.value })} required className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+                {openSessions.map((s) => {
+                  const caja = cajas.find((c) => c.id === s.cajaId);
+                  return <option key={s.id} value={s.id}>{caja?.nombre ?? "Caja"} (Sesión abierta)</option>;
+                })}
+              </select>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Conteo de Denominaciones (DOP)</label>
@@ -141,7 +162,7 @@ export default function ArqueosPage() {
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={() => setModal(false)} className="px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancelar</button>
-            <button type="submit" className="px-4 py-2.5 bg-slate-700 hover:bg-slate-800 text-white text-sm font-medium rounded-lg cursor-pointer flex items-center gap-2"><ClipboardCheck className="w-4 h-4" /> Realizar Arqueo</button>
+            <button type="submit" disabled={openSessions.length === 0} className={`px-4 py-2.5 text-white text-sm font-medium rounded-lg flex items-center gap-2 ${openSessions.length === 0 ? "bg-slate-300 cursor-not-allowed" : "bg-slate-700 hover:bg-slate-800 cursor-pointer"}`}><ClipboardCheck className="w-4 h-4" /> Realizar Arqueo</button>
           </div>
         </form>
       </Modal>

@@ -3,6 +3,7 @@ import { CheckCircle, Play, Plus, Search, XCircle } from "lucide-react";
 import { solicitudesApi, sucursalesApi } from "../../services/api";
 import type { FundRequest, RequestStatus, Sucursal } from "../../types";
 import Modal from "../../components/ui/Modal";
+import { confirmAction } from "../../utils/alerts";
 import StatusBadge from "../../components/ui/StatusBadge";
 
 type RequestView = {
@@ -146,7 +147,7 @@ export default function SolicitudesPage() {
   };
 
   const handleExecute = async (id: string) => {
-    if (!window.confirm("¿Ejecutar esta solicitud?")) return;
+    if (!(await confirmAction("¿Ejecutar esta solicitud?", "Esta acción transferirá los fondos según lo solicitado.", "Sí, ejecutar"))) return;
     setError("");
     await solicitudesApi.execute(id);
     await load();

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, Search, Pencil, UserX } from "lucide-react";
 import { usuariosApi, rolesApi, sucursalesApi } from "../../services/api";
 import type { User, Role, Sucursal } from "../../types";
+import { confirmAction } from "../../utils/alerts";
 import Modal from "../../components/ui/Modal";
 import StatusBadge from "../../components/ui/StatusBadge";
 
@@ -59,7 +60,7 @@ export default function UsuariosPage() {
   };
 
   const handleDeactivate = async (id: string) => {
-    if (!confirm("¿Desactivar este usuario?")) return;
+    if (!(await confirmAction("¿Desactivar este usuario?", "El usuario no podrá acceder al sistema.", "Sí, desactivar"))) return;
     await usuariosApi.deactivate(id);
     load();
   };

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Ban, Plus, Search } from "lucide-react";
 import { movimientosApi, cajasApi, sesionesApi } from "../../services/api";
+import { confirmAction } from "../../utils/alerts";
 import type {
   CashMovement,
   Cashbox,
@@ -201,7 +202,7 @@ export default function MovimientosPage() {
   };
 
   const handleVoid = async (id: string) => {
-    const confirmed = window.confirm("¿Anular este movimiento?");
+    const confirmed = await confirmAction("¿Anular este movimiento?", "Esta acción revertirá el movimiento registrado.", "Sí, anular");
     if (!confirmed) return;
 
     setError("");

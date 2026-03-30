@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import {
   Bot,
   Loader2,
@@ -196,7 +197,13 @@ export default function GlobalAssistantChat() {
                       <>Tú</>
                     )}
                   </div>
-                  <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
+                  {message.role === "assistant" ? (
+                    <div className="prose-chat text-sm leading-6">
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
+                  )}
                   <p className={`mt-2 text-[11px] ${message.role === "assistant" ? "text-slate-400" : "text-slate-300"}`}>
                     {formatTime(message.timestamp)}
                   </p>

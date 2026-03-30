@@ -26,6 +26,7 @@ import type {
 } from "../../types";
 import Modal from "../../components/ui/Modal";
 import StatusBadge from "../../components/ui/StatusBadge";
+import { confirmAction } from "../../utils/alerts";
 
 type BranchFormState = {
   codigo: string;
@@ -319,7 +320,7 @@ export default function SucursalesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("¿Eliminar esta sucursal?")) return;
+    if (!(await confirmAction("¿Eliminar esta sucursal?", "Esta acción no se puede deshacer.", "Sí, eliminar"))) return;
 
     try {
       await sucursalesApi.delete(id);

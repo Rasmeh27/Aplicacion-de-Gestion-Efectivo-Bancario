@@ -1,5 +1,55 @@
 @import "tailwindcss";
 
+/* Chat markdown styles */
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3,
+.prose-chat h4 {
+  font-weight: 700;
+  margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
+  line-height: 1.4;
+}
+.prose-chat h3 { font-size: 0.938rem; }
+.prose-chat h4 { font-size: 0.875rem; }
+.prose-chat p { margin: 0.35rem 0; }
+.prose-chat ul,
+.prose-chat ol {
+  padding-left: 1.25rem;
+  margin: 0.35rem 0;
+}
+.prose-chat ul { list-style-type: disc; }
+.prose-chat ol { list-style-type: decimal; }
+.prose-chat li { margin: 0.15rem 0; }
+.prose-chat li > ul,
+.prose-chat li > ol { margin: 0.1rem 0; }
+.prose-chat strong { font-weight: 600; color: #334155; }
+.prose-chat code {
+  background: #f1f5f9;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  font-size: 0.8rem;
+}
+.prose-chat pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+.prose-chat pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+.prose-chat hr {
+  border-color: #e2e8f0;
+  margin: 0.5rem 0;
+}
+.prose-chat > *:first-child { margin-top: 0; }
+.prose-chat > *:last-child { margin-bottom: 0; }
+
 /* Hidden scrollbar — scroll works, bar invisible */
 .scrollbar-hidden {
   -ms-overflow-style: none;

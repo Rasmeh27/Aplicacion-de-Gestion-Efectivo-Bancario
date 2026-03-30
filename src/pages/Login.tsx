@@ -71,7 +71,7 @@ export default function Login() {
               </div>
 
               <p className="text-xs uppercase tracking-widest text-slate-400">
-                Preferida por más de 500+ entidades bancarias 🏦
+                Preferida por más de 500+ entidades bancarias 
               </p>
             </div>
           </div>
